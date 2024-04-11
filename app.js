@@ -1,51 +1,101 @@
-const controlTexto= document.getElementById("controlTexto");
-// Espera a que se cargue el documento
-document.addEventListener('DOMContentLoaded', function() {
-    const btnIdentificar = document.getElementById('btnIdentificar');
-    const inputOrden = document.getElementById('orden');
-    const resultado = document.getElementById('resultado');
-    // Agrega un event listener al botón de identificar ordenn
-    //comentario
+document.addEventListener('DOMContentLoaded', function () {
+    const resultDiv = document.getElementById('result');
 
-    btnIdentificar.addEventListener('click', function() {
-        // Captura la orden ingresada por voz
-        const orden = inputOrden.value.trim();
+    // Comprobar si el navegador admite la API de reconocimiento de voz
+    if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const recognition = new SpeechRecognition();
 
-        // Aquí puedes agregar la lógica para identificar la orden
-        // Por ejemplo, puedes enviarla a un servidor para procesarla
-        // y recibir la respuesta para mostrarla en el resultado
-        resultado.textContent = "La orden ingresada es: " + orden;
+        // Definir configuraciones del reconocimiento de voz
+        // Configurar el idioma a español
+        recognition.lang = 'es-ES';
 
-    });
+        // Escuchar cuando se haya detectado un resultado
+        recognition.onresult = function (event) {
+            const transcript = event.results[0][0].transcript.toLowerCase();
+            console.log('Transcripción de voz:', transcript);
 
-    // Configurar el reconocimiento de voz
-    const reconocimientoVoz = new webkitSpeechRecognition() || new SpeechRecognition();
-    reconocimientoVoz.lang = 'es-ES';
+            // Ejecutar acciones según el comando de voz
+            if (transcript.includes('abrir nueva pestaña')) {
+                window.open('', '_blank');
+                resultDiv.innerHTML = '<p>Nueva pestaña abierta.</p>';
+            } else if (transcript.includes('ir a')) {
+                const url = obtenerUrl(transcript);
+                if (url) {
+                    window.location.href = url;
+                    resultDiv.innerHTML = `<p>Redirigiendo a <strong>${url}</strong>.</p>`;
+                } else {
+                    resultDiv.innerHTML = '<p>Error: No se proporcionó una URL válida.</p>';
+                }
+            } else if (transcript.includes('cerrar pestaña')) {
+                window.close();
+                resultDiv.innerHTML = '<p>Pestaña cerrada.</p>';
+            } else if (transcript.includes('cerrar navegador')) {
+                window.open('', '_self', '');
+                window.close();
+                resultDiv.innerHTML = '<p>Navegador cerrado.</p>';
+            } else if (transcript.includes('tamaño')) {
+                const palabras = transcript.split(' ');
+                const indexTamaño = palabras.indexOf('tamaño');
 
-    // Evento que se dispara cuando se obtiene un resultado del reconocimiento de voz
-    reconocimientoVoz.onresult = function(event) {
-        const resultadoVoz = event.results[0][0].transcript;
-        const keyword = "tamaño 3"; 
-        inputOrden.value = resultadoVoz;
+                // Obtener el tamaño de letra especificado en el comando
+                const tamaño = parseInt(palabras[indexTamaño + 1]);
 
-      
-            resultadoVoz.includes(keyword);
-
-            if(resultadoVoz.includes(keyword)) {
-                controlTexto.classList.add('fs-3');
-        console.log("Si se encontro la palabra... ");
+                // Aplicar el tamaño de letra al elemento de controlTexto
+                if (!isNaN(tamaño)) {
+                    document.body.style.fontSize = tamaño + 'px';
+                    resultDiv.innerHTML = `<p>Tamaño de letra cambiado a <strong>${tamaño}px</strong>.</p>`;
+                } else {
+                    resultDiv.innerHTML = '<p>Error: No se proporcionó un tamaño válido.</p>';
+                }
+            } else {
+                resultDiv.innerHTML = '<p>Comando no reconocido.</p>';
             }
-            
-    };
 
+            // Enviar el comando de voz a MockAPI
+            enviarComandoAVoz(transcript);
+        };
 
-    // Evento que se dispara cuando se detecta un error en el reconocimiento de voz
-    reconocimientoVoz.onerror = function(event) {
-        console.error('Error en el reconocimiento de voz:', event.error);
-    };
+        // Escuchar errores
+        recognition.onerror = function (event) {
+            console.error('Error de reconocimiento de voz:', event.error);
+            resultDiv.innerHTML = '<p>Error al procesar la orden de voz. Por favor, inténtalo de nuevo.</p>';
+        };
 
-    // Agregar evento de clic al input para iniciar el reconocimiento de voz
-    inputOrden.addEventListener('click', function() {
-        reconocimientoVoz.start();
-    });
+        // Iniciar el reconocimiento de voz cuando se haga clic en cualquier parte del documento
+        document.body.addEventListener('click', function () {
+            recognition.start();
+            resultDiv.innerHTML = '<p>Escuchando... Di tu orden.</p>';
+        });
+    } else {
+        // Si el navegador no admite la API de reconocimiento de voz, mostrar un mensaje de error
+        resultDiv.innerHTML = '<p>Tu navegador no admite la API de reconocimiento de voz. Por favor, actualízalo a una versión más reciente.</p>';
+    }
 });
+
+// Función para obtener la URL de un comando
+function obtenerUrl(transcript) {
+    const palabras = transcript.split(' ');
+    const indexIrA = palabras.indexOf('ir') + 1;
+    return palabras.slice(indexIrA).join(' ');
+}
+
+// Función para enviar el comando de voz a MockAPI
+function enviarComandoAVoz(comando) {
+    fetch('https://65ef77abead08fa78a507acc.mockapi.io/webappvoice', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            comando: comando
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Error al enviar el comando de voz a MockAPI');
+        }
+        console.log('Comando de voz enviado correctamente a MockAPI');
+    })
+    .catch(error => console.error('Error:', error));
+}
