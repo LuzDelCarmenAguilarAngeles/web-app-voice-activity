@@ -52,8 +52,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 resultDiv.innerHTML = '<p>Comando no reconocido.</p>';
             }
 
-            // Enviar el comando de voz a MockAPI
-            enviarComandoAVoz(transcript);
+            // Enviar el comando de voz a MockAPI junto con la fecha y hora actual
+            enviarComandoAVoz(transcript, obtenerFechaHoraActual());
         };
 
         // Escuchar errores
@@ -80,15 +80,26 @@ function obtenerUrl(transcript) {
     return palabras.slice(indexIrA).join(' ');
 }
 
+// Función para obtener la fecha y hora actual en el formato deseado
+function obtenerFechaHoraActual() {
+    const fechaHora = new Date().toISOString().split('T');
+    return {
+        fecha: fechaHora[0],
+        hora: fechaHora[1].slice(0, 8) // Para obtener solo la hora en formato HH:MM:SS
+    };
+}
+
 // Función para enviar el comando de voz a MockAPI
-function enviarComandoAVoz(comando) {
-    fetch('https://65ef77abead08fa78a507acc.mockapi.io/webappvoice', {
+function enviarComandoAVoz(comando, fechaHora) {
+    fetch('https://65ef77c3ead08fa78a507bac.mockapi.io/webappvoice', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-            comando: comando
+            comando: comando,
+            fecha: fechaHora.fecha,
+            hora: fechaHora.hora
         })
     })
     .then(response => {
